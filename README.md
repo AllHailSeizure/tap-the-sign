@@ -1,36 +1,19 @@
-# devvit-app-template
+# Tap the Sign
 
-Standard template for standalone [Reddit Devvit](https://developers.reddit.com/docs) Web apps under `AllHailSeizure`.
+A [Reddit Devvit](https://developers.reddit.com/docs) Web app. It adds a **"Tap the Sign"** post-menu action that comments a "tap the sign" image on the post, once per post. If the post body contains LaTeX, the app also replies under the image with the math converted to readable Unicode, then distinguishes and locks that reply.
 
-## Included Stack
+- **Devvit app:** `tap-the-sign` · **App Store version:** `2.0.1`
+- **Legal:** [Terms](https://allhailseizure.github.io/tap-the-sign/terms/) · [Privacy](https://allhailseizure.github.io/tap-the-sign/privacy/)
+- Built from [`AllHailSeizure/devvit-app-template`](https://github.com/AllHailSeizure/devvit-app-template). The app was moved out of [`AllHailSeizure/Reddit-Devvit`](https://github.com/AllHailSeizure/Reddit-Devvit) (`tap-the-sign/`, source commit `649cd2a9e8fece8b3253d373f34ff911e42f931e`) with its subfolder git history preserved.
 
-- **Runtime & SDK:** Node `24` (`.node-version`), `@devvit/web`, `@devvit/start`, `@devvit/shared-types`, and `devvit` CLI pinned consistently (`0.15.6`).
-- **Server:** Hono (`src/server/app.ts` separated from `src/server/index.ts` so routes can be tested in-process).
-- **Quality gates:** `npm run check` runs `eslint`, `tsc --noEmit` (`strict: true`), `vitest`, and `vite build` (`dist/server/index.cjs`).
-- **No-login testing:** `@devvit/test` (`createDevvitTest()`) extended by `FakeRedditWorld` + `ScenarioRunner` (`src/server/test-harness/`) for testing Hono triggers/menus and mocking Moderation/Listing/Flair APIs without logging in to Reddit.
-- **Helpers:** Lightweight `logger()` (`src/server/helpers/logger.ts`) and `formatSignature()` (`src/server/helpers/signature.ts`).
-- **CI/CD & Legal Docs:** GitHub Actions CI (`ci.yml`), manual lockstep release (`release.yml`), and per-repo GitHub Pages legal site (`docs/` + `pages.yml`).
+## Layout
 
----
-
-## Creating a New App From This Template
-
-1. On GitHub, click **Use this template → Create a new repository** under `AllHailSeizure` (public, default branch `master`).
-2. Clone the new repository and customize these files:
-   - `package.json` — set `"name"` to your app slug and `"version"` to your starting 3-part SemVer (e.g. `"0.1.0"` or matching your existing Devvit App Store version).
-   - `devvit.json` — set `"name"` to your unique Devvit app slug, update `dev.subreddit`, `permissions`, `triggers`, `menu`, and `settings`.
-   - `assets/icon.png` — replace the placeholder icon.
-   - `docs/_config.yml` — update `title` and `baseurl` (`"/<your-repo-name>"`).
-   - `docs/privacy.md` & `docs/terms.md` — replace `<APP_NAME>` and tailor data/terms sections.
-3. Install dependencies and verify locally:
-
-```sh
-npm install
-npm run check
-```
-
-4. Enable **GitHub Pages** in repository **Settings → Pages → Source: GitHub Actions** so `docs/` publishes to `https://allhailseizure.github.io/<repo>/`.
-5. Configure the `DEVVIT_AUTH_TOKEN` secret (see below).
+| Path | Purpose |
+| --- | --- |
+| `src/server/tap-the-sign.ts` | Menu route `/internal/menu/tap-the-sign`: Redis once-per-post claim (`tap-the-sign:tapped:{postId}`), image upload, meme comment, and math reply |
+| `src/server/latex-unicode.ts` | LaTeX extraction, repair, and Unicode conversion used for the reply |
+| `src/server/__fixtures__/` | Real-post fixture for the conversion tests |
+| `assets/tap-the-sign.png` | Sign image, inlined into the server bundle at build time |
 
 ---
 
@@ -52,7 +35,7 @@ npm run dev         # npx devvit playtest (requires Devvit login)
 - **`FakeRedditWorld`:** stateful in-memory posts/comments and `vi.spyOn` handlers for `reddit.submitComment` and `reddit.remove`, plus a `.use(extension)` hook for adding module-specific spies (`getComments`, `getPostsByUser`, `getModerators`, `setUserFlair`, etc.).
 - **`ScenarioRunner`:** calls `createApp().fetch(...)` directly against `/internal/triggers/*`, `/internal/menu/*`, and `/internal/forms/*`.
 
-See `src/server/app.test.ts` for a working example.
+See `src/server/tap-the-sign.test.ts` for working examples.
 
 ---
 

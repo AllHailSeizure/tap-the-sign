@@ -4,32 +4,34 @@ title: Privacy Policy
 permalink: /privacy/
 ---
 
-# Privacy Policy
+# Privacy Policy — Tap the Sign
 
-**Effective Date:** YYYY-MM-DD
-
-> **Template Placeholder:** Replace `<APP_NAME>` and customize sections below before submitting to the Reddit Developer Portal.
+**Effective Date:** 2026-11-25
 
 ## 1. Overview
 
-This Privacy Policy explains how **\<APP_NAME\>** collects, uses, and protects data when installed on a Reddit community via Reddit's Devvit platform.
+This Privacy Policy explains what data **Tap the Sign** ("the app") handles when it is installed on a Reddit community through Reddit's Devvit platform. The app adds a **"Tap the Sign"** item to the post menu. When someone uses it on a post, the app comments a "tap the sign" image on that post. If the post's text contains LaTeX math, the app also posts a reply under the image with that math converted to readable Unicode.
 
-## 2. Data Collected
+## 2. Data the App Processes
 
-Depending on enabled features, \<APP_NAME\> may process:
+- **Post identifier.** The ID of the post the menu action was used on.
+- **Post text.** When the action runs, the app reads the post's body text once to find LaTeX math and convert it to Unicode. The text is processed in memory only. It is not stored by the app.
+- **Comments the app creates.** The image comment and the optional math reply are posted publicly on Reddit under the app's account. The math reply is distinguished and locked.
+- **Once-per-post marker.** A small key in the app's Devvit Redis storage, scoped to the installing subreddit, records that a post has already been tapped. It holds the post ID and no user data, and it stays until the app is uninstalled.
+- **Diagnostic logs.** Devvit platform logs record post and comment IDs, character counts, and error messages so the app can be operated and debugged. They do not contain usernames or post text.
 
-- **Reddit identifiers & content** — post IDs, comment IDs, user IDs/usernames, flairs, and content submitted to the subreddit where the app is installed.
-- **Operational state** — temporary deduplication keys, cooldown/rate-limit counters, and moderator-configured settings stored in Devvit Redis.
-- **Diagnostic logs** — error and action logs used solely to operate and debug the app.
+The app does **not** record which user used the menu action. It does not collect personal information, and it does not use cookies or tracking.
 
-## 3. Data Use & Sharing
+## 3. Sharing
 
-Data is used exclusively to provide the configured functionality inside the installing subreddit. Data is **not** sold, used for advertising, or used to train machine learning models.
+The app sends no data to third-party services. The sign image is uploaded to Reddit's own media hosting so it can appear in the comment. Data is never sold, used for advertising, or used to train machine-learning models.
 
-## 4. Data Retention
+## 4. Retention and Deletion
 
-Temporary Redis state expires automatically according to feature TTLs. Subreddit-scoped data can be cleared by uninstalling the app from the subreddit.
+- The once-per-post markers stay in the subreddit's Devvit Redis storage while the app is installed, and are removed when a moderator uninstalls the app.
+- Comments posted by the app are normal Reddit comments. Moderators can remove them at any time.
+- Log retention is controlled by Reddit's Devvit platform.
 
 ## 5. Contact
 
-For questions or deletion requests, contact the moderators of the subreddit where \<APP_NAME\> is installed or open an issue on this repository.
+For questions, or to request removal of a comment, contact the moderators of the subreddit where the app is installed, or open an issue at [github.com/AllHailSeizure/tap-the-sign](https://github.com/AllHailSeizure/tap-the-sign/issues).

@@ -3,6 +3,15 @@ import { reddit, type Comment, type CommentSubmissionOptions } from '@devvit/web
 import type { T1, T3 } from '@devvit/web/shared';
 import type { DevvitFixtures } from '@devvit/test/server/vitest';
 
+/** RichTextBuilder keeps its document in private state; prefer its `build()` output. */
+function serializeRichtext(richtext: unknown): string {
+  const built =
+    richtext && typeof (richtext as { build?: unknown }).build === 'function'
+      ? (richtext as { build: () => unknown }).build()
+      : richtext;
+  return typeof built === 'string' ? built : JSON.stringify(built);
+}
+
 export interface FakeCommentRecord {
   id: T1;
   parentId: T1 | T3;
@@ -91,7 +100,7 @@ export class FakeRedditWorld {
           id,
           parentId: options.id,
           postId,
-          body: 'text' in options ? options.text : JSON.stringify(options.richtext),
+          body: 'text' in options ? options.text : serializeRichtext(options.richtext),
           authorName: 'test-app',
           removed: false,
           locked: false,
