@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "devvit-app-template",
+  "marketingAssets": {
+    "icon": "assets/icon.png"
+  },
+  "server": {
+    "entry": "index.cjs"
+  },
+  "dev": {
+    "subreddit": "llmphysics_dev"
+  },
+  "permissions": {
+    "redis": true,
+    "reddit": {
+      "enable": true
+    }
+  },
+  "triggers": {
+    "onPostSubmit": "/internal/triggers/post-submit"
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Example Action",
+        "description": "Example moderator menu action.",
+        "forUserType": "moderator",
+        "location": "post",
+        "endpoint": "/internal/menu/example-action"
+      }
+    ]
+  },
+  "settings": {
+    "global": {},
+    "subreddit": {
+      "enabled": {
+        "type": "boolean",
+        "label": "Enable app",
+        "helpText": "Enable or disable automated actions.",
+        "defaultValue": true
+      },
+      "botSignature": {
+        "type": "paragraph",
+        "label": "Bot signature",
+        "helpText": "Appended to bot comments. Leave blank for no signature.",
+        "defaultValue": ""
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build"
+  }
+}

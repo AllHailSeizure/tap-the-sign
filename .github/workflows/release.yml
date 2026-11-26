@@ -1,0 +1,199 @@
+name: Release Devvit app
+run-name: Release ${{ inputs.bump == 'explicit' && inputs.version || inputs.bump }} (${{ inputs.visibility }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: SemVer bump type (or 'explicit' to use version input)
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - explicit
+      version:
+        description: Explicit 3-part SemVer (only used when bump is 'explicit', e.g. 1.2.3)
+        required: false
+        type: string
+        default: ''
+      visibility:
+        description: Devvit App Store publish visibility
+        required: true
+        type: choice
+        default: unlisted
+        options:
+          - unlisted
+          - public
+
+permissions:
+  contents: write
+
+concurrency:
+  group: devvit-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Enforce master branch
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo '::error::Releases must run from master.'
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Resolve and validate target version
+        id: ver
+        shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
+          EXPLICIT_VERSION: ${{ inputs.version }}
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if ! [[ "$CURRENT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Current package.json version '$CURRENT_VERSION' is not strict 3-part SemVer."
+            exit 1
+          fi
+
+          if [[ "$BUMP" == "explicit" ]]; then
+            NEW_VERSION="$EXPLICIT_VERSION"
+          else
+            if [[ -n "$EXPLICIT_VERSION" ]]; then
+              echo "::error::Do not provide 'version' unless bump='explicit'."
+              exit 1
+            fi
+            IFS='.' read -r MAJ MIN PAT <<< "$CURRENT_VERSION"
+            case "$BUMP" in
+              patch) NEW_VERSION="$MAJ.$MIN.$((PAT + 1))" ;;
+              minor) NEW_VERSION="$MAJ.$((MIN + 1)).0" ;;
+              major) NEW_VERSION="$((MAJ + 1)).0.0" ;;
+              *) echo "::error::Unsupported bump '$BUMP'."; exit 1 ;;
+            esac
+          fi
+
+          if ! [[ "$NEW_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Target version '$NEW_VERSION' must be strict 3-part SemVer (e.g. 1.2.3)."
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v$NEW_VERSION" >/dev/null; then
+            echo "::error::Tag v$NEW_VERSION already exists."
+            exit 1
+          fi
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Bump package.json and package-lock.json
+        env:
+          NEW_VERSION: ${{ steps.ver.outputs.new_version }}
+        run: npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Run full check (lint, typecheck, test, build)
+        run: npm run check
+
+      - name: Verify Devvit authentication
+        env:
+          DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+        run: |
+          if [[ -z "$DEVVIT_AUTH_TOKEN" ]]; then
+            echo '::error::Missing DEVVIT_AUTH_TOKEN repository secret. See README.md.'
+            exit 1
+          fi
+          npx --no devvit whoami </dev/null
+          npx --no devvit list apps </dev/null
+
+      - name: Publish to Devvit App Store
+        env:
+          DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+          DEVVIT_ALLOW_SOURCE_UPLOAD: '1'
+          NEW_VERSION: ${{ steps.ver.outputs.new_version }}
+          VISIBILITY: ${{ inputs.visibility }}
+        shell: bash
+        run: |
+          args=(publish --version "$NEW_VERSION")
+          if [[ "$VISIBILITY" == "public" ]]; then
+            args+=(--public)
+          fi
+          npx --no devvit "${args[@]}" </dev/null
+
+      - name: Commit version bump, tag, and create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_VERSION: ${{ steps.ver.outputs.new_version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VISIBILITY: ${{ inputs.visibility }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): $TAG"
+          fi
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin HEAD:master
+          git push origin "$TAG"
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            --notes "Devvit App Store version \`$NEW_VERSION\` (visibility: \`$VISIBILITY\`)."
+
+      - name: Assert lockstep versions (tag == package.json == Devvit)
+        env:
+          DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+          NEW_VERSION: ${{ steps.ver.outputs.new_version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        shell: bash
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=$(git describe --tags --exact-match HEAD)
+          PUBLISHED_VERSION=$(npx --no devvit view "@$NEW_VERSION" version </dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1 || true)
+
+          echo "package.json: $PKG_VERSION"
+          echo "git tag:      $TAG_VERSION"
+          echo "Devvit store: $PUBLISHED_VERSION"
+
+          if [[ "$PKG_VERSION" != "$NEW_VERSION" ]]; then
+            echo "::error::package.json version '$PKG_VERSION' != '$NEW_VERSION'"
+            exit 1
+          fi
+          if [[ "$TAG_VERSION" != "$TAG" ]]; then
+            echo "::error::git tag '$TAG_VERSION' != '$TAG'"
+            exit 1
+          fi
+          if [[ "$PUBLISHED_VERSION" != "$NEW_VERSION" ]]; then
+            echo "::error::Devvit published version '$PUBLISHED_VERSION' != '$NEW_VERSION'"
+            exit 1
+          fi
+
+      - name: Write job summary
+        env:
+          NEW_VERSION: ${{ steps.ver.outputs.new_version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VISIBILITY: ${{ inputs.visibility }}
+        run: |
+          printf '### Released %s\n\n- Version: `%s`\n- Tag: `%s`\n- Visibility: `%s`\n- Commit: `%s`\n' \
+            "$GITHUB_REPOSITORY" "$NEW_VERSION" "$TAG" "$VISIBILITY" "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"

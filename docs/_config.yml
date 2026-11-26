@@ -1,0 +1,6 @@
+theme: jekyll-theme-minimal
+title: Devvit App - Legal Documentation
+description: Terms of Service and Privacy Policy
+url: "https://allhailseizure.github.io"
+baseurl: "/devvit-app-template"
+markdown: kramdown
