@@ -4,7 +4,7 @@ import { describe, expect, vi } from 'vitest';
 import { reddit, redis } from '@devvit/web/server';
 import type { MenuItemRequest, T3 } from '@devvit/web/shared';
 import { createApp } from './app';
-import { createModTest } from './test-harness';
+import { createModTest, expectAllEndpointsCovered } from './test-harness';
 
 const test = createModTest({ appFactory: createApp });
 
@@ -79,4 +79,45 @@ describe('tap-the-sign menu action', () => {
     const retry = await runner.menu('tap-the-sign', tap(postId));
     expect(retry.showToast).toEqual({ text: 'Tapped the sign.', appearance: 'success' });
   });
+
+  test('a failed math reply leaves the meme and the claim in place', async ({ world, runner }) => {
+    const postId = 't3_mathfail' as T3;
+    world.seedPost({ id: postId, title: 'Math', selftext: fixture('clifford-seam.md') });
+    vi.mocked(reddit.submitComment)
+      .mockImplementationOnce(vi.mocked(reddit.submitComment).getMockImplementation()!)
+      .mockRejectedValueOnce(new Error('rate limited'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await runner.menu('tap-the-sign', tap(postId));
+
+    expect(res.showToast).toEqual({ text: 'Tapped the sign.', appearance: 'success' });
+    const [meme] = world.commentsOn(postId);
+    expect(world.commentsOn(meme!.id)).toHaveLength(0);
+    expect(await redis.get(`tap-the-sign:tapped:${postId}`)).toBe('1');
+  });
+});
+
+describe('scenarios', () => {
+  test('any user can tap the sign on a post from the post menu', async ({ runner }) => {
+    await runner
+      .scenario('a reader taps the sign')
+      .given('alice posts a theory', ({ world }) => {
+        world.seedPost({ id: 't3_toe', title: 'TOE', selftext: 'No math.', author: 'alice' });
+      })
+      .when('bob taps the sign from the post menu', ({ runner: r }) =>
+        r.as('bob').menu('tap-the-sign', tap('t3_toe' as T3))
+      )
+      .then('the app comments the sign image as itself', ({ actions, world }) => {
+        expect(actions.map((a) => `${a.actor} ${a.type} ${a.target}`)).toEqual([
+          'test-app comment t3_toe',
+        ]);
+        expect(world.appComments()).toHaveLength(1);
+      })
+      .run();
+  });
+});
+
+// Keep last.
+test('every devvit.json endpoint has a scenario', () => {
+  expectAllEndpointsCovered();
 });

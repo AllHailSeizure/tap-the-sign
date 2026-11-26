@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "vite build",
-    "dev": "devvit playtest"
+    "dev": "devvit playtest",
+    "harness:sync": "node scripts/sync-test-harness.mjs",
+    "harness:check": "node scripts/sync-test-harness.mjs --check"
   },
   "dependencies": {
     "@devvit/web": "0.15.6",
