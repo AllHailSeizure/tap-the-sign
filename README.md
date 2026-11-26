@@ -51,7 +51,7 @@ This repo keeps the harness up to date with `npm run harness:sync`. `npm run har
 
 ## Required GitHub Secret (`DEVVIT_AUTH_TOKEN`)
 
-The manual release workflow requires a repository (or organization) secret named **`DEVVIT_AUTH_TOKEN`** containing the **full raw contents** of your logged-in `~/.devvit/token` file:
+The tag release workflow requires a repository (or organization) secret named **`DEVVIT_AUTH_TOKEN`** containing the **full raw contents** of your logged-in `~/.devvit/token` file:
 
 ```sh
 npx devvit login
@@ -67,7 +67,7 @@ Get-Content -LiteralPath (Join-Path $env:USERPROFILE '.devvit/token') -Raw |
   gh secret set DEVVIT_AUTH_TOKEN
 ```
 
-> **Security & reliability note:** `DEVVIT_AUTH_TOKEN` is an undocumented CLI environment variable holding your personal Reddit OAuth refresh token — not a scoped CI service account. Keep it strictly on `master` release jobs (never PR workflows), rotate it if compromised, and note that it can expire or require re-login (`devvit login`) if Reddit invalidates sessions.
+> **Security & reliability note:** `DEVVIT_AUTH_TOKEN` is an undocumented CLI environment variable holding your personal Reddit OAuth refresh token — not a scoped CI service account. Keep it strictly on the tag release job (never PR workflows), rotate it if compromised, and note that it can expire or require re-login (`devvit login`) if Reddit invalidates sessions.
 
 ---
 
@@ -77,18 +77,28 @@ Get-Content -LiteralPath (Join-Path $env:USERPROFILE '.devvit/token') -Raw |
 
 - **Strict 3-part SemVer only:** `MAJOR.MINOR.PATCH` (e.g. `1.2.0`). Never use 4-part versions or prerelease suffixes for releases.
 - **Lockstep invariant:** Every release keeps four artifacts identical:
-  1. `package.json` (`"version": "X.Y.Z"`)
+  1. `package.json` and `package-lock.json` (`"version": "X.Y.Z"`)
   2. Git tag (`vX.Y.Z`)
   3. GitHub Release (`vX.Y.Z`)
   4. Devvit App Store (`X.Y.Z`)
 
 ### Running a Release
 
-1. Merge all changes to `master` and wait for **CI** (`ci.yml`) to pass.
-2. Open **Actions → Release Devvit app → Run workflow** on `master`:
-   - **`bump`:** `patch`, `minor`, `major`, or `explicit`
-   - **`version`:** only fill in when `bump` is `explicit` (e.g. `1.0.0`)
-   - **`visibility`:** `unlisted` (default) or `public`
-3. The workflow bumps `package.json` & `package-lock.json`, runs `npm run check`, authenticates via `DEVVIT_AUTH_TOKEN`, runs `npx --no devvit publish --version X.Y.Z` (with `DEVVIT_ALLOW_SOURCE_UPLOAD=1` and optional `--public`), commits + tags `vX.Y.Z` on `master`, creates GitHub Release `vX.Y.Z`, and asserts `tag == package.json == Devvit App Store version`.
+Releases are tag-triggered. Pushing a `vX.Y.Z` tag runs **Release Devvit app** (`release.yml`), which publishes **that exact tagged commit** to the Devvit App Store. There is no manual publish button.
+
+1. In a PR, bump the version in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`), merge it to `master`, and wait for **CI** (`ci.yml`) to pass.
+2. Tag the merged commit and push **only the tag**:
+
+```sh
+git checkout master && git pull
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+3. The workflow (a thin caller of the shared [`devvit-release.yml`](https://github.com/AllHailSeizure/.github/blob/master/.github/workflows/devvit-release.yml)) checks out the tag's commit and fails before publishing unless the tag is strict SemVer `vX.Y.Z`, the commit is on `master`, and `package.json` and `package-lock.json` already say `X.Y.Z`. It then runs `npm run check`, authenticates via `DEVVIT_AUTH_TOKEN`, runs `npx --no devvit publish --version X.Y.Z` (with `DEVVIT_ALLOW_SOURCE_UPLOAD=1`), asserts the store reports `X.Y.Z`, and creates GitHub Release `vX.Y.Z`. CI never pushes a commit back.
+
+Releases publish as **unlisted**. To publish publicly, change `visibility: unlisted` to `public` in `release.yml`.
+
+If a tag fails validation, nothing was published: delete the tag (`git push origin :refs/tags/vX.Y.Z`), fix the cause, and tag again. One release runs at a time per repository, so push tags one at a time.
 
 > Note: `devvit publish` submits a version to Reddit's Developer Portal. Installing/upgrading on a subreddit (`devvit install`) and deploying any external Supabase migrations/functions remain separate steps.
