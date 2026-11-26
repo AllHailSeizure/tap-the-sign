@@ -14,9 +14,13 @@ permissions:
 jobs:
   release:
     # The reusable workflow's github-release job needs contents: write; its
+    # release gates read CI results (actions, checks, statuses: read); its
     # publish job (the only one that sees DEVVIT_AUTH_TOKEN) is read-only.
     permissions:
       contents: write
+      actions: read
+      checks: read
+      statuses: read
     uses: AllHailSeizure/.github/.github/workflows/devvit-release.yml@master
     with:
       visibility: unlisted # change to `public` to publish publicly
