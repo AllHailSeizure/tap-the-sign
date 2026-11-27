@@ -4,7 +4,7 @@ Version: see `HARNESS_VERSION` in `index.ts`. **This folder is owned by
 [devvit-app-template](https://github.com/AllHailSeizure/devvit-app-template).
 Do not edit it in an app repo.** Run `npm run harness:sync` to pull updates.
 
-Nothing here talks to Reddit. The harness needs no Devvit login. `reddit.com`,
+Nothing here talks to Reddit. The harness runs offline and does not use a Devvit or Reddit session. `reddit.com`,
 `redd.it`, `redditmedia.com` and `redditstatic.com` are hard-blocked even if a
 test tries to stub them.
 
@@ -139,5 +139,5 @@ http.callsTo('api.example.com'); // recorded calls with parsed JSON bodies
 - **Event payloads**: they follow the protobuf JSON shapes, but enum fields use numeric values and many optional fields are defaulted. A self post's `url` is its own reddit.com permalink, as in Reddit's API; this is assumed for trigger payloads, not verified against live events. Pass `url: ''` to model a payload with no URL.
 - **IDs**: generated ids (`t3_p1`, `t1_c2`, ...) skip ids a test already seeded; seeding a duplicate id throws.
 - **Cron**: the matcher runs at minute resolution in UTC. A 6-field (seconds) expression fires once per matching minute. Jobs fire in sequence, not concurrently.
-- **Settings**: validation (types, `onValidate` handlers) is not run. Secrets are plain values.
+- **Settings**: validation (types, `onValidate` handlers) is not run. Marked-sensitive settings are stored as plain strings in the harness.
 - **Realtime, payments and the client webview** are not modeled. Use `mocks.realtime` / `mocks.media` directly.
