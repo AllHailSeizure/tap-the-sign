@@ -84,6 +84,4 @@ There are **no** slash commands, chat triggers, mod configuration forms, or sche
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE). Copyright (c) 2026 Nate Bosma.
 
-## For developers
-
-Source, tests, releases, and local setup are documented in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+Want to suggest a code change? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
