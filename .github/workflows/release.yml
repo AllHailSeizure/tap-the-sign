@@ -2,8 +2,8 @@ name: Release Devvit app
 run-name: Release ${{ github.ref_name }}
 
 # Pushing a vX.Y.Z tag publishes that exact commit to the Devvit App Store.
-# The logic lives in AllHailSeizure/.github (devvit-release.yml). See README.md,
-# "Versioning & Release Process". There is deliberately no manual trigger.
+# The logic lives in AllHailSeizure/.github (devvit-release.yml). There is
+# deliberately no manual trigger.
 on:
   push:
     tags: ['v*']
@@ -15,7 +15,7 @@ jobs:
   release:
     # The reusable workflow's github-release job needs contents: write; its
     # release gates read CI results (actions, checks, statuses: read); its
-    # publish job (the only one that sees DEVVIT_AUTH_TOKEN) is read-only.
+    # publish job is read-only.
     permissions:
       contents: write
       actions: read
