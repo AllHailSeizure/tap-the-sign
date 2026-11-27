@@ -1,106 +1,89 @@
 # Tap the Sign
 
-A [Reddit Devvit](https://developers.reddit.com/docs) Web app. It adds a **"Tap the Sign"** post-menu action that comments a "tap the sign" image on the post, once per post. If the post body contains LaTeX, the app also replies under the image with the math converted to readable Unicode, then distinguishes and locks that reply.
+**One tap on a post. A sign image appears in the comments—and when the post hides math in LaTeX, a locked, easy-to-read Unicode reply shows up underneath.**
 
-- **Devvit app:** `tap-the-sign` · **App Store version:** `2.0.1`
-- **Legal:** [Terms](https://allhailseizure.github.io/tap-the-sign/terms/) · [Privacy](https://allhailseizure.github.io/tap-the-sign/privacy/)
-- Built from [`AllHailSeizure/devvit-app-template`](https://github.com/AllHailSeizure/devvit-app-template). The app was moved out of [`AllHailSeizure/Reddit-Devvit`](https://github.com/AllHailSeizure/Reddit-Devvit) (`tap-the-sign/`, source commit `649cd2a9e8fece8b3253d373f34ff911e42f931e`) with its subfolder git history preserved.
+A [Reddit Devvit](https://developers.reddit.com/docs) app for communities that love the “tap the sign” meme and want math-heavy posts to stay readable for everyone.
 
-## Layout
+<!-- SCREENSHOT: Post menu open on a thread, with "Tap the Sign" visible among the actions -->
 
-| Path | Purpose |
+> 📸 Screenshot coming soon: the post **⋯** menu with **Tap the Sign** highlighted.
+
+## What it does
+
+- **Sign image comment** — Someone uses **Tap the Sign** on a post. The app posts a “tap the sign” image as a comment from the app account.
+- **Once per post** — Each post can only be tapped once while the app stays installed. A second try shows a neutral toast: *Already tapped!*
+- **LaTeX → Unicode (when it applies)** — If the post body contains non-trivial LaTeX math, the app replies under the sign image with that math converted to readable Unicode text. That reply is **distinguished** and **locked**.
+- **No math, no extra reply** — Posts with plain text only get the sign image; no follow-up comment.
+- **Graceful failures** — If posting the image fails, the “already tapped” lock is cleared so someone can try again. If only the math reply fails, the sign image stays and the post still counts as tapped.
+
+The LaTeX conversion is **best effort**. It is not a full TeX engine; complex layout (big fractions, matrices, etc.) may look flattened or imperfect. See [Terms of Service](https://allhailseizure.github.io/tap-the-sign/terms/) for the accuracy disclaimer.
+
+## Who can use it
+
+The post-menu action is available to **any signed-in Reddit user** on posts in a subreddit where the app is installed—not moderators only.
+
+## Install the app on your subreddit
+
+1. Sign in as a **moderator** of the subreddit.
+2. Open Reddit’s **Developer** / **Mod Tools** flow for [Devvit apps](https://developers.reddit.com/docs) and install **Tap the Sign** (`tap-the-sign`) on your community.  
+   *(Use the listing or install link Reddit provides for this app; the maintainers publish version **2.0.1** to the Devvit App Store.)*
+3. Confirm the app is enabled. No in-app settings or configuration screen is required—the menu item appears on posts automatically.
+
+To remove the app, uninstall it from the same Devvit / mod tools area. That clears the per-post “already tapped” markers stored for your subreddit (see [Privacy Policy](https://allhailseizure.github.io/tap-the-sign/privacy/)).
+
+## How to use it
+
+1. Open a **post** in a subreddit where **Tap the Sign** is installed.
+2. Open the post **⋯** (overflow) menu.
+3. Choose **Tap the Sign**.
+
+### What you’ll see
+
+| Result | Toast message |
 | --- | --- |
-| `src/server/tap-the-sign.ts` | Menu route `/internal/menu/tap-the-sign`: Redis once-per-post claim (`tap-the-sign:tapped:{postId}`), image upload, meme comment, and math reply |
-| `src/server/latex-unicode.ts` | LaTeX extraction, repair, and Unicode conversion used for the reply |
-| `src/server/__fixtures__/` | Real-post fixture for the conversion tests |
-| `assets/tap-the-sign.png` | Sign image, inlined into the server bundle at build time |
+| Success | **Tapped the sign.** (success) |
+| Post already tapped | **Already tapped!** (neutral) |
+| Error (e.g. Reddit API issue) | **Could not tap the sign:** *reason* (neutral) |
 
----
+### Example: post with LaTeX
 
-## Local Commands
+After a successful tap on a physics post, the thread might look like this:
 
-```sh
-npm run check       # lint + typecheck + test + vite build
-npm run lint        # ESLint
-npm run typecheck   # tsc --noEmit
-npm test            # Vitest (no Reddit login required)
-npm run build       # Vite build -> dist/server/index.cjs
-npm run dev         # npx devvit playtest (requires Devvit login)
+```text
+[Post author’s text with \( \mathcal{H} \) and other LaTeX…]
+
+  └─ [App] (image: tap the sign)
+       └─ [App, distinguished, locked] Unicode lines derived from the post’s math
 ```
 
-### No-Login Testing (offline virtual Reddit)
+### Example: plain post
 
-`createModTest()` in `src/server/test-harness/` wraps `@devvit/test` with:
+```text
+[Post with no LaTeX math]
 
-- **`FakeRedditWorld`**: subreddits, users (mods, approved, banned, bots), threaded posts and comments, flair, reports, removals and approvals, modmail, wiki pages, mod notes and private messages behind the `reddit.*` API. Every write the app makes is logged (`world.describeActions()`).
-- **`ScenarioRunner`**:
-  - Simulates Reddit activity (`userPosts`, `userComments`, `report`, `modRemoves`, `userModmails`, `install`, …) and fires whichever triggers `devvit.json` declares.
-  - Clicks menus and submits forms as a given user.
-  - Advances a fake clock that runs cron tasks and `scheduler.runJob` jobs.
-  - Offers a `given` / `when` / `then` scenario DSL.
-- **`FakeHttp`**: per-domain `fetch` stubs. An unstubbed call fails the test, so does a host missing from `devvit.json` `permissions.http.domains`, and reddit.com is always blocked.
-- **Coverage**: `expectAllEndpointsCovered()` fails if any declared trigger, menu, form or scheduler endpoint has no scenario.
-
-See [`src/server/test-harness/README.md`](src/server/test-harness/README.md) for the API and known gaps, and `src/server/tap-the-sign.test.ts` for this app's scenarios.
-
-This repo keeps the harness up to date with `npm run harness:sync`. `npm run harness:check` and the weekly `harness-drift` workflow report drift. Do not edit `src/server/test-harness/` here; change it in [devvit-app-template](https://github.com/AllHailSeizure/devvit-app-template) and sync.
-
-> `createModTest()` wraps plain `test(...)` calls only. For parameterised cases, loop over the cases and call `test(...)` for each one: `test.each` / `test.for` bypass the wrapper, so their tests get no `world` or `runner`.
-
----
-
-## Required GitHub Secret (`DEVVIT_AUTH_TOKEN`)
-
-The tag release workflow requires a repository (or organization) secret named **`DEVVIT_AUTH_TOKEN`** containing the **full raw contents** of your logged-in `~/.devvit/token` file:
-
-```sh
-npx devvit login
-npx devvit whoami
-gh secret set DEVVIT_AUTH_TOKEN < ~/.devvit/token
+  └─ [App] (image: tap the sign)
+       (no second comment)
 ```
 
-On Windows PowerShell:
+### Rules of thumb
 
-```powershell
-npx devvit whoami
-Get-Content -LiteralPath (Join-Path $env:USERPROFILE '.devvit/token') -Raw |
-  gh secret set DEVVIT_AUTH_TOKEN
-```
+- **One tap per post** — Encourage users to tap once; repeats are blocked on purpose.
+- **Comments are public** — Image and math replies are normal Reddit comments from the app. Mods can remove them anytime.
+- **No user tracking** — The app does not record *who* tapped; it only remembers *which posts* were already tapped.
 
-> **Security & reliability note:** `DEVVIT_AUTH_TOKEN` is an undocumented CLI environment variable holding your personal Reddit OAuth refresh token — not a scoped CI service account. Keep it strictly on the tag release job (never PR workflows), rotate it if compromised, and note that it can expire or require re-login (`devvit login`) if Reddit invalidates sessions.
+There are **no** slash commands, chat triggers, mod configuration forms, or scheduled jobs in this app—only the **Tap the Sign** post menu item.
 
----
+## Legal & support
 
-## Versioning & Release Process
+- [Terms of Service](https://allhailseizure.github.io/tap-the-sign/terms/)
+- [Privacy Policy](https://allhailseizure.github.io/tap-the-sign/privacy/)
+- Questions or bug reports: [GitHub Issues](https://github.com/AllHailSeizure/tap-the-sign/issues)  
+  For comment removal, contact your subreddit’s moderators.
 
-### Versioning Rules
+## License
 
-- **Strict 3-part SemVer only:** `MAJOR.MINOR.PATCH` (e.g. `1.2.0`). Never use 4-part versions or prerelease suffixes for releases.
-- **Lockstep invariant:** Every release keeps four artifacts identical:
-  1. `package.json` and `package-lock.json` (`"version": "X.Y.Z"`)
-  2. Git tag (`vX.Y.Z`)
-  3. GitHub Release (`vX.Y.Z`)
-  4. Devvit App Store (`X.Y.Z`)
+This project is licensed under the **MIT License** — see [LICENSE](LICENSE). Copyright (c) 2026 Nate Bosma.
 
-### Running a Release
+## For developers
 
-Releases are tag-triggered. Pushing a `vX.Y.Z` tag runs **Release Devvit app** (`release.yml`), which publishes **that exact tagged commit** to the Devvit App Store. There is no manual publish button.
-
-Only Nate approves releases. Once Nate has approved a release, Devviteloper (Nate's Devvit project-lead bot) pushes the `vX.Y.Z` tag. Devvit PRs may be merged by Nate or Devviteloper. The release workflow does not enforce that approval; it is a process rule.
-
-1. In a PR, bump the version in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`), merge it to `master` (Nate or Devviteloper may merge), and wait for **CI** (`ci.yml`) to pass.
-2. After Nate has approved the release, Devviteloper tags the merged commit and pushes **only the tag**:
-
-```sh
-git checkout master && git pull
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
-```
-
-3. The workflow (a thin caller of the shared [`devvit-release.yml`](https://github.com/AllHailSeizure/.github/blob/master/.github/workflows/devvit-release.yml)) checks out the tag's commit and fails before publishing unless the tag is strict SemVer `vX.Y.Z`, the commit is on `master`, and `package.json` and `package-lock.json` already say `X.Y.Z`. It then runs `npm run check`, authenticates via `DEVVIT_AUTH_TOKEN`, runs `npx --no devvit publish --version X.Y.Z` (with `DEVVIT_ALLOW_SOURCE_UPLOAD=1`), asserts the store reports `X.Y.Z`, and creates GitHub Release `vX.Y.Z`. CI never pushes a commit back.
-
-Releases publish as **unlisted**. To publish publicly, change `visibility: unlisted` to `public` in `release.yml`.
-
-If a tag fails validation, nothing was published: delete the tag (`git push origin :refs/tags/vX.Y.Z`), fix the cause, and tag again. One release runs at a time per repository, so push tags one at a time.
-
-> Note: `devvit publish` submits a version to Reddit's Developer Portal. Installing/upgrading on a subreddit (`devvit install`) and deploying any external Supabase migrations/functions remain separate steps.
+Source, tests, releases, and local setup are documented in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
