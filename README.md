@@ -86,8 +86,10 @@ Get-Content -LiteralPath (Join-Path $env:USERPROFILE '.devvit/token') -Raw |
 
 Releases are tag-triggered. Pushing a `vX.Y.Z` tag runs **Release Devvit app** (`release.yml`), which publishes **that exact tagged commit** to the Devvit App Store. There is no manual publish button.
 
-1. In a PR, bump the version in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`), merge it to `master`, and wait for **CI** (`ci.yml`) to pass.
-2. Tag the merged commit and push **only the tag**:
+Only Nate approves releases. Once Nate has approved a release, Devviteloper (Nate's Devvit project-lead bot) pushes the `vX.Y.Z` tag. Devvit PRs may be merged by Nate or Devviteloper. The release workflow does not enforce that approval; it is a process rule.
+
+1. In a PR, bump the version in `package.json` and `package-lock.json` (`npm version X.Y.Z --no-git-tag-version`), merge it to `master` (Nate or Devviteloper may merge), and wait for **CI** (`ci.yml`) to pass.
+2. After Nate has approved the release, Devviteloper tags the merged commit and pushes **only the tag**:
 
 ```sh
 git checkout master && git pull
